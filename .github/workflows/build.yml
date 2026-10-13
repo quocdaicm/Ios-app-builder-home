@@ -18,6 +18,14 @@ jobs:
           find . -maxdepth 3 -not -path './.git/*' | head -60
           SPEC=$(find . -name project.yml -not -path './.git/*' | head -1)
           if [ -z "$SPEC" ]; then
+            ZIP=$(ls -t ./*.zip 2>/dev/null | head -1 || true)
+            if [ -n "$ZIP" ]; then
+              echo "Giải nén $ZIP"
+              mkdir -p _src && unzip -q -o "$ZIP" -d _src
+              SPEC=$(find ./_src -name project.yml | head -1)
+            fi
+          fi
+          if [ -z "$SPEC" ]; then
             echo "::error::Không tìm thấy project.yml trong repo. Hãy upload file project.yml và thư mục Sources."
             exit 1
           fi
@@ -58,3 +66,4 @@ jobs:
         with:
           name: CityBuilder-ipa
           path: ${{ steps.loc.outputs.dir }}/CityBuilder.ipa
+
