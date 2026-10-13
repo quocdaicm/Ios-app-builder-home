@@ -10,11 +10,30 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Locate project
+        id: loc
+        run: |
+          echo "Repo contents:"
+          find . -maxdepth 3 -not -path './.git/*' | head -60
+          SPEC=$(find . -name project.yml -not -path './.git/*' | head -1)
+          if [ -z "$SPEC" ]; then
+            echo "::error::Không tìm thấy project.yml trong repo. Hãy upload file project.yml và thư mục Sources."
+            exit 1
+          fi
+          DIR=$(dirname "$SPEC")
+          echo "Project dir: $DIR"
+          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+
       - name: Install XcodeGen
         run: brew install xcodegen
+
       - name: Generate Xcode project
+        working-directory: ${{ steps.loc.outputs.dir }}
         run: xcodegen generate
+
       - name: Build (unsigned)
+        working-directory: ${{ steps.loc.outputs.dir }}
         run: |
           xcodebuild \
             -project CityBuilder.xcodeproj \
@@ -27,12 +46,15 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             build
+
       - name: Package IPA
+        working-directory: ${{ steps.loc.outputs.dir }}
         run: |
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/CityBuilder.app Payload/
           zip -r CityBuilder.ipa Payload
+
       - uses: actions/upload-artifact@v4
         with:
           name: CityBuilder-ipa
-          path: CityBuilder.ipa
+          path: ${{ steps.loc.outputs.dir }}/CityBuilder.ipa
